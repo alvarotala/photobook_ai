@@ -13,3 +13,8 @@ export type Scene = {
   image: ImageSourcePropType;
   prompt: string;
 };
+
+export type GeneratedImage = {
+  id: string;
+  imageUrl: string;
+};

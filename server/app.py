@@ -75,6 +75,8 @@ def create_app(
         if photo.content_type not in ALLOWED_CONTENT_TYPES:
             raise HTTPException(status_code=415, detail="La foto debe ser JPEG, PNG o WebP")
 
+        participant_filename = Path(photo.filename or "participant.jpg").name
+        participant_content_type = photo.content_type
         participant_bytes = await photo.read(settings.max_upload_bytes + 1)
         await photo.close()
         if not participant_bytes:
@@ -85,8 +87,8 @@ def create_app(
         image_bytes = await app.state.gateway.generate(
             template_path=scene_definition.template_path(settings.templates_dir),
             participant_bytes=participant_bytes,
-            participant_filename=Path(photo.filename or "participant.jpg").name,
-            participant_content_type=photo.content_type,
+            participant_filename=participant_filename,
+            participant_content_type=participant_content_type,
             prompt=scene_definition.prompt,
         )
         filename = storage.save_png(image_bytes)

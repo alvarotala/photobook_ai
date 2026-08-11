@@ -22,7 +22,9 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "typecheck": "tsc --noEmit",
+    "export:android": "expo export --platform android",
+    "server": ".venv/bin/python -m server",
+    "server:test": ".venv/bin/python -m unittest discover -s server/tests -v"
   }
 }

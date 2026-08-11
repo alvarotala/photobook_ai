@@ -9,7 +9,7 @@ import { ProcessingScreen } from './src/screens/ProcessingScreen';
 import { ResultScreen } from './src/screens/ResultScreen';
 import { SceneSelectionScreen } from './src/screens/SceneSelectionScreen';
 import { colors } from './src/theme';
-import type { AppStep, Scene } from './src/types';
+import type { AppStep, GeneratedImage, Scene } from './src/types';
 
 const SESSION_TIMEOUT_MS = 60_000;
 
@@ -17,12 +17,14 @@ export default function App() {
   const [step, setStep] = useState<AppStep>('home');
   const [scene, setScene] = useState<Scene | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<GeneratedImage | null>(null);
   const [sessionVersion, setSessionVersion] = useState(0);
 
   const resetSession = useCallback(() => {
     setStep('home');
     setScene(null);
     setPhotoUri(null);
+    setGeneratedImage(null);
     setSessionVersion((value) => value + 1);
   }, []);
 
@@ -63,12 +65,21 @@ export default function App() {
         />
       )}
       {step === 'processing' && scene && photoUri && (
-        <ProcessingScreen scene={scene} onComplete={() => setStep('result')} />
+        <ProcessingScreen
+          scene={scene}
+          photoUri={photoUri}
+          onBack={() => setStep('camera')}
+          onComplete={(result) => {
+            setGeneratedImage(result);
+            setStep('result');
+          }}
+        />
       )}
-      {step === 'result' && scene && photoUri && (
+      {step === 'result' && scene && photoUri && generatedImage && (
         <ResultScreen
           scene={scene}
           capturedPhotoUri={photoUri}
+          generatedImage={generatedImage}
           onRetake={() => setStep('camera')}
           onRestart={resetSession}
         />

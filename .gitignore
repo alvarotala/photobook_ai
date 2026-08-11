@@ -34,7 +34,6 @@ yarn-error.*
 # local env files
 .env
 .env*.local
-key.env
 
 # Generated photobook results
 generated_images/*

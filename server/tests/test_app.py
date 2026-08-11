@@ -1,0 +1,101 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from server.app import create_app
+from server.config import Settings
+
+
+GENERATED_PNG = b"\x89PNG\r\n\x1a\nmock-generated-image"
+
+
+class FakeGateway:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    async def generate(self, **kwargs: object) -> bytes:
+        self.calls.append(kwargs)
+        return GENERATED_PNG
+
+
+class PhotobookServerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        root = Path(self.temporary_directory.name)
+        templates_dir = root / "templates"
+        images_dir = root / "images"
+        templates_dir.mkdir()
+        for filename in ("car.png", "podium.png", "hero.png"):
+            (templates_dir / filename).write_bytes(b"template")
+
+        self.gateway = FakeGateway()
+        self.settings = Settings(
+            api_key="test-key",
+            model="gpt-image-2",
+            public_base_url="https://photos.example.test",
+            images_dir=images_dir,
+            templates_dir=templates_dir,
+        )
+        self.app = create_app(settings=self.settings, gateway=self.gateway)
+
+    def tearDown(self) -> None:
+        self.temporary_directory.cleanup()
+
+    def test_generate_saves_random_image_and_exposes_it(self) -> None:
+        with TestClient(self.app) as client:
+            response = client.post(
+                "/api/generate",
+                data={"scene": "hero"},
+                files={"photo": ("participant.jpg", b"fake-jpeg", "image/jpeg")},
+            )
+
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertRegex(payload["id"], r"^[A-Za-z0-9_-]{32}$")
+            self.assertEqual(
+                payload["image_url"],
+                f"https://photos.example.test/images/{payload['id']}.png",
+            )
+            saved_path = self.settings.images_dir / f"{payload['id']}.png"
+            self.assertEqual(saved_path.read_bytes(), GENERATED_PNG)
+            self.assertEqual(len(self.gateway.calls), 1)
+
+    def test_rejects_unknown_scene_without_calling_gateway(self) -> None:
+        with TestClient(self.app) as client:
+            response = client.post(
+                "/api/generate",
+                data={"scene": "unknown"},
+                files={"photo": ("participant.jpg", b"fake-jpeg", "image/jpeg")},
+            )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.gateway.calls, [])
+
+    def test_rejects_unsupported_file_type(self) -> None:
+        with TestClient(self.app) as client:
+            response = client.post(
+                "/api/generate",
+                data={"scene": "car"},
+                files={"photo": ("participant.txt", b"not-an-image", "text/plain")},
+            )
+
+        self.assertEqual(response.status_code, 415)
+        self.assertEqual(self.gateway.calls, [])
+
+    def test_health_reports_configuration_without_exposing_key(self) -> None:
+        with TestClient(self.app) as client:
+            payload = client.get("/health").json()
+
+        self.assertEqual(
+            payload,
+            {"status": "ok", "openai_configured": True, "model": "gpt-image-2"},
+        )
+        self.assertNotIn("test-key", str(payload))
+
+
+if __name__ == "__main__":
+    unittest.main()

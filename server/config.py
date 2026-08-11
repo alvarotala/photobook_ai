@@ -12,7 +12,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def load_environment() -> None:
     """Load local secrets without overriding values supplied by the host."""
-    load_dotenv(PROJECT_ROOT / "key.env", override=False)
     load_dotenv(PROJECT_ROOT / ".env", override=False)
 
 
