@@ -8,10 +8,11 @@ Este archivo contiene decisiones, recordatorios y trabajo pendiente del equipo. 
 - La pantalla final muestra la imagen generada y un QR con `image_url`.
 - El servidor guarda resultados en `generated_images/` con nombres aleatorios.
 - Las pruebas del servidor utilizan un gateway falso y no consumen créditos de OpenAI.
+- Cada escena genera una máscara RGBA en memoria. La zona transparente cubre al sujeto placeholder y obliga a OpenAI a editar esa región usando la captura como segunda referencia.
 
 ## Pendientes
 
-- Realizar una generación completa con una clave configurada y evaluar la preservación de identidad en las tres escenas.
+- Repetir una generación completa después de incorporar las máscaras y evaluar la preservación de identidad en las tres escenas.
 - Ajustar los prompts después de revisar resultados reales.
 - Definir la política de retención y agregar limpieza automática cuando se conozca el tiempo requerido por el evento.
 - Agregar autenticación o un token de instalación antes de exponer el servidor fuera de una red privada.

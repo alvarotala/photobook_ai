@@ -3,6 +3,8 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+import struct
+import zlib
 
 from fastapi.testclient import TestClient
 
@@ -63,6 +65,36 @@ class PhotobookServerTests(unittest.TestCase):
             saved_path = self.settings.images_dir / f"{payload['id']}.png"
             self.assertEqual(saved_path.read_bytes(), GENERATED_PNG)
             self.assertEqual(len(self.gateway.calls), 1)
+            call = self.gateway.calls[0]
+            self.assertEqual(call["participant_bytes"], b"fake-jpeg")
+            self.assertIn("MUST replace", str(call["prompt"]))
+            mask = call["mask_bytes"]
+            self.assertIsInstance(mask, bytes)
+            self.assertTrue(mask.startswith(b"\x89PNG\r\n\x1a\n"))
+
+    def test_each_mask_matches_its_template_and_contains_editable_pixels(self) -> None:
+        from server.scenes import SCENES
+
+        expected_dimensions = {
+            "car": (1672, 941),
+            "podium": (1536, 1024),
+            "hero": (1672, 941),
+        }
+        for name, scene in SCENES.items():
+            png = scene.mask.to_png()
+            width, height = struct.unpack(">II", png[16:24])
+            self.assertEqual((width, height), expected_dimensions[name])
+
+            idat_length = struct.unpack(">I", png[33:37])[0]
+            self.assertEqual(png[37:41], b"IDAT")
+            raw = zlib.decompress(png[41 : 41 + idat_length])
+            row_size = 1 + width * 4
+            alpha_values = bytearray()
+            for y in range(height):
+                row = raw[y * row_size + 1 : (y + 1) * row_size]
+                alpha_values.extend(row[3::4])
+            self.assertIn(0, alpha_values)
+            self.assertIn(255, alpha_values)
 
     def test_rejects_unknown_scene_without_calling_gateway(self) -> None:
         with TestClient(self.app) as client:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import logging
 from pathlib import Path
 from typing import Annotated
 
@@ -16,6 +17,7 @@ from .storage import ImageStorage
 
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+logger = logging.getLogger("photobook.server")
 
 
 def create_app(
@@ -84,12 +86,25 @@ def create_app(
         if len(participant_bytes) > settings.max_upload_bytes:
             raise HTTPException(status_code=413, detail="La foto supera el límite de 20 MB")
 
+        logger.info(
+            "Sending scene=%s participant=%s (%d bytes) to OpenAI",
+            scene,
+            participant_filename,
+            len(participant_bytes),
+        )
         image_bytes = await app.state.gateway.generate(
             template_path=scene_definition.template_path(settings.templates_dir),
             participant_bytes=participant_bytes,
             participant_filename=participant_filename,
             participant_content_type=participant_content_type,
             prompt=scene_definition.prompt,
+            mask_bytes=scene_definition.mask.to_png(),
+        )
+        logger.info(
+            "Generated scene=%s using participant=%s (%d bytes)",
+            scene,
+            participant_filename,
+            len(participant_bytes),
         )
         filename = storage.save_png(image_bytes)
         base_url = settings.public_base_url or str(request.base_url).rstrip("/")

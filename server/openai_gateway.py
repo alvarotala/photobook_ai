@@ -22,6 +22,7 @@ class ImageGateway(Protocol):
         participant_filename: str,
         participant_content_type: str,
         prompt: str,
+        mask_bytes: bytes,
     ) -> bytes: ...
 
 
@@ -39,6 +40,7 @@ class OpenAIImageGateway:
         participant_filename: str,
         participant_content_type: str,
         prompt: str,
+        mask_bytes: bytes,
     ) -> bytes:
         if not self.api_key:
             raise ImageGenerationError("OPENAI_API_KEY no está configurada en el servidor")
@@ -50,6 +52,7 @@ class OpenAIImageGateway:
                 "image[]",
                 (participant_filename, participant_bytes, participant_content_type),
             ),
+            ("mask", ("subject-mask.png", mask_bytes, "image/png")),
         ]
         data = {
             "model": self.model,
