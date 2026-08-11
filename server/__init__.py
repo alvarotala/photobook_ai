@@ -1,0 +1,1 @@
+"""Photobook AI mini server."""

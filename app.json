@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Photobook AI",
+    "slug": "photobook-ai",
+    "version": "1.0.0",
+    "platforms": ["android"],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "com.photobookai.kiosk",
+      "permissions": [
+        "CAMERA"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#090B10",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
