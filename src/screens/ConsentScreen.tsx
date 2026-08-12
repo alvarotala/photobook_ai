@@ -22,15 +22,9 @@ export function ConsentScreen({ scene, onAccept, onBack }: Props) {
             <Text style={styles.tipText}>{scene.instruction}</Text>
           </View>
         </View>
-        <View style={styles.privacyCard}>
-          <Text style={styles.privacyTitle}>Privacidad y uso de imagen</Text>
-          <Text style={styles.privacyText}>
-            Al continuar, aceptás que tu fotografía sea enviada a OpenAI y procesada con inteligencia artificial para crear esta composición.
-          </Text>
-        </View>
       </View>
       <View style={styles.footer}>
-        <PrimaryButton onPress={onAccept}>ACEPTO Y CONTINUAR</PrimaryButton>
+        <PrimaryButton onPress={onAccept}>CONTINUAR</PrimaryButton>
       </View>
     </View>
   );
