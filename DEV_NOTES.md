@@ -9,6 +9,8 @@ Este archivo contiene decisiones, recordatorios y trabajo pendiente del equipo. 
 - El servidor guarda resultados en `generated_images/` con nombres aleatorios.
 - Las pruebas del servidor utilizan un gateway falso y no consumen créditos de OpenAI.
 - Cada escena genera una máscara RGBA en memoria. La zona transparente cubre al sujeto placeholder y obliga a OpenAI a editar esa región usando la captura como segunda referencia.
+- El servidor genera en memoria un recorte central ampliado del rostro y lo envía como tercera referencia de identidad; ese recorte temporal no se guarda.
+- Para depuración, se guarda el payload auditable completo: plantilla `-T`, captura `-S`, recorte facial `-F`, máscara `-M` y manifiesto `-REQUEST.json`, además del resultado final sin sufijo.
 
 ## Pendientes
 
@@ -26,3 +28,9 @@ Este archivo contiene decisiones, recordatorios y trabajo pendiente del equipo. 
 - `README.md`: instalación, configuración, inicio, uso y resolución de problemas para usuarios del repositorio.
 - `DEV_NOTES.md`: decisiones internas, experimentos, pendientes y recordatorios del equipo.
 - Todos los secretos y valores específicos de cada instalación deben permanecer en el único archivo ignorado `.env`.
+
+## Preferencias de colaboración
+
+- Las observaciones del usuario sobre la ejecución se toman como hechos y no se vuelven a comprobar salvo pedido explícito.
+- Durante la depuración se evita agregar validaciones o flujos no solicitados.
+- No instalar dependencias; entregar los comandos necesarios para que el usuario los ejecute.

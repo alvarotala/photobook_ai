@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,9 +11,15 @@ from fastapi.testclient import TestClient
 
 from server.app import create_app
 from server.config import Settings
+from server.masking import MaskDefinition, Rectangle
 
 
 GENERATED_PNG = b"\x89PNG\r\n\x1a\nmock-generated-image"
+SOURCE_PNG = MaskDefinition(
+    width=64,
+    height=64,
+    editable_shapes=(Rectangle(left=16, top=16, right=48, bottom=48),),
+).to_png()
 
 
 class FakeGateway:
@@ -52,7 +59,7 @@ class PhotobookServerTests(unittest.TestCase):
             response = client.post(
                 "/api/generate",
                 data={"scene": "hero"},
-                files={"photo": ("participant.jpg", b"fake-jpeg", "image/jpeg")},
+                files={"photo": ("participant.png", SOURCE_PNG, "image/png")},
             )
 
             self.assertEqual(response.status_code, 200)
@@ -64,10 +71,38 @@ class PhotobookServerTests(unittest.TestCase):
             )
             saved_path = self.settings.images_dir / f"{payload['id']}.png"
             self.assertEqual(saved_path.read_bytes(), GENERATED_PNG)
+            source_path = self.settings.images_dir / f"{payload['id']}-S.png"
+            face_path = self.settings.images_dir / f"{payload['id']}-F.png"
+            mask_path = self.settings.images_dir / f"{payload['id']}-M.png"
+            template_path = self.settings.images_dir / f"{payload['id']}-T.png"
+            request_path = self.settings.images_dir / f"{payload['id']}-REQUEST.json"
+            self.assertTrue(source_path.is_file())
+            self.assertTrue(source_path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
+            self.assertTrue(face_path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
+            self.assertTrue(mask_path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
+            self.assertEqual(template_path.read_bytes(), b"template")
+            self.assertEqual(
+                payload["source_image_url"],
+                f"https://photos.example.test/images/{payload['id']}-S.png",
+            )
+            self.assertEqual(
+                payload["face_reference_url"],
+                f"https://photos.example.test/images/{payload['id']}-F.png",
+            )
+            manifest = json.loads(request_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["quality"], "high")
+            self.assertEqual(
+                [part["role"] for part in manifest["multipart"]],
+                ["template", "participant-source", "participant-face-reference", "edit-mask"],
+            )
             self.assertEqual(len(self.gateway.calls), 1)
             call = self.gateway.calls[0]
-            self.assertEqual(call["participant_bytes"], b"fake-jpeg")
-            self.assertIn("MUST replace", str(call["prompt"]))
+            self.assertEqual(call["template_bytes"], template_path.read_bytes())
+            self.assertEqual(call["participant_bytes"], source_path.read_bytes())
+            self.assertEqual(call["identity_closeup_bytes"], face_path.read_bytes())
+            self.assertEqual(call["mask_bytes"], mask_path.read_bytes())
+            self.assertEqual(call["mask_filename"], mask_path.name)
+            self.assertIn("authoritative for identity", str(call["prompt"]))
             mask = call["mask_bytes"]
             self.assertIsInstance(mask, bytes)
             self.assertTrue(mask.startswith(b"\x89PNG\r\n\x1a\n"))

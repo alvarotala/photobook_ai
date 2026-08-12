@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import hashlib
 import logging
 from pathlib import Path
 from typing import Annotated
@@ -11,7 +12,20 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import Settings
-from .openai_gateway import ImageGateway, ImageGenerationError, OpenAIImageGateway
+from .identity_reference import (
+    IdentityReferenceError,
+    convert_source_to_png,
+    create_centered_identity_closeup,
+)
+from .openai_gateway import (
+    OPENAI_IMAGE_ENDPOINT,
+    OPENAI_IMAGE_OUTPUT_FORMAT,
+    OPENAI_IMAGE_QUALITY,
+    OPENAI_IMAGE_SIZE,
+    ImageGateway,
+    ImageGenerationError,
+    OpenAIImageGateway,
+)
 from .scenes import SCENES
 from .storage import ImageStorage
 
@@ -78,7 +92,6 @@ def create_app(
             raise HTTPException(status_code=415, detail="La foto debe ser JPEG, PNG o WebP")
 
         participant_filename = Path(photo.filename or "participant.jpg").name
-        participant_content_type = photo.content_type
         participant_bytes = await photo.read(settings.max_upload_bytes + 1)
         await photo.close()
         if not participant_bytes:
@@ -86,19 +99,71 @@ def create_app(
         if len(participant_bytes) > settings.max_upload_bytes:
             raise HTTPException(status_code=413, detail="La foto supera el límite de 20 MB")
 
+        try:
+            source_png = convert_source_to_png(participant_bytes)
+            identity_closeup_png = create_centered_identity_closeup(participant_bytes)
+        except IdentityReferenceError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        image_id = storage.create_id()
+        template_bytes = scene_definition.template_path(settings.templates_dir).read_bytes()
+        mask_bytes = scene_definition.mask.to_png()
+        template_filename = storage.save_png(template_bytes, image_id, suffix="-T")
+        source_filename = storage.save_png(source_png, image_id, suffix="-S")
+        identity_filename = storage.save_png(identity_closeup_png, image_id, suffix="-F")
+        mask_filename = storage.save_png(mask_bytes, image_id, suffix="-M")
+        request_manifest = {
+            "endpoint": OPENAI_IMAGE_ENDPOINT,
+            "model": settings.model,
+            "size": OPENAI_IMAGE_SIZE,
+            "quality": OPENAI_IMAGE_QUALITY,
+            "output_format": OPENAI_IMAGE_OUTPUT_FORMAT,
+            "scene": scene,
+            "prompt": scene_definition.prompt,
+            "multipart": [
+                {
+                    "field": "image[]",
+                    "role": "template",
+                    "filename": template_filename,
+                    "sha256": hashlib.sha256(template_bytes).hexdigest(),
+                },
+                {
+                    "field": "image[]",
+                    "role": "participant-source",
+                    "filename": source_filename,
+                    "sha256": hashlib.sha256(source_png).hexdigest(),
+                },
+                {
+                    "field": "image[]",
+                    "role": "participant-face-reference",
+                    "filename": identity_filename,
+                    "sha256": hashlib.sha256(identity_closeup_png).hexdigest(),
+                },
+                {
+                    "field": "mask",
+                    "role": "edit-mask",
+                    "filename": mask_filename,
+                    "sha256": hashlib.sha256(mask_bytes).hexdigest(),
+                },
+            ],
+        }
+        request_filename = storage.save_request_manifest(request_manifest, image_id)
         logger.info(
-            "Sending scene=%s participant=%s (%d bytes) to OpenAI",
+            "Sending scene=%s payload=%s to OpenAI",
             scene,
-            participant_filename,
-            len(participant_bytes),
+            request_filename,
         )
         image_bytes = await app.state.gateway.generate(
-            template_path=scene_definition.template_path(settings.templates_dir),
-            participant_bytes=participant_bytes,
-            participant_filename=participant_filename,
-            participant_content_type=participant_content_type,
+            template_bytes=template_bytes,
+            template_filename=template_filename,
+            participant_bytes=source_png,
+            participant_filename=source_filename,
+            participant_content_type="image/png",
+            identity_closeup_bytes=identity_closeup_png,
+            identity_closeup_filename=identity_filename,
             prompt=scene_definition.prompt,
-            mask_bytes=scene_definition.mask.to_png(),
+            mask_bytes=mask_bytes,
+            mask_filename=mask_filename,
         )
         logger.info(
             "Generated scene=%s using participant=%s (%d bytes)",
@@ -106,11 +171,16 @@ def create_app(
             participant_filename,
             len(participant_bytes),
         )
-        filename = storage.save_png(image_bytes)
+        filename = storage.save_png(image_bytes, image_id)
         base_url = settings.public_base_url or str(request.base_url).rstrip("/")
         return {
-            "id": filename.removesuffix(".png"),
+            "id": image_id,
             "image_url": f"{base_url}/images/{filename}",
+            "source_image_url": f"{base_url}/images/{source_filename}",
+            "face_reference_url": f"{base_url}/images/{identity_filename}",
+            "mask_url": f"{base_url}/images/{mask_filename}",
+            "template_url": f"{base_url}/images/{template_filename}",
+            "request_manifest_url": f"{base_url}/images/{request_filename}",
         }
 
     return app

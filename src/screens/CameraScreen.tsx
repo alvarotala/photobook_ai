@@ -24,7 +24,7 @@ export function CameraScreen({ scene, onCapture, onBack }: Props) {
     const capture = async () => {
       try {
         setCapturing(true);
-        const photo = await cameraRef.current?.takePictureAsync({ quality: 0.9, skipProcessing: false });
+        const photo = await cameraRef.current?.takePictureAsync({ skipProcessing: true });
         if (photo?.uri) onCapture(photo.uri);
       } finally {
         setCountdown(null);

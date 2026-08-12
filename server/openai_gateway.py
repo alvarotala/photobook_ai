@@ -3,10 +3,15 @@ from __future__ import annotations
 import base64
 import binascii
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Protocol
 
 import httpx
+
+
+OPENAI_IMAGE_ENDPOINT = "https://api.openai.com/v1/images/edits"
+OPENAI_IMAGE_SIZE = "1536x1024"
+OPENAI_IMAGE_QUALITY = "high"
+OPENAI_IMAGE_OUTPUT_FORMAT = "png"
 
 
 class ImageGenerationError(RuntimeError):
@@ -17,12 +22,16 @@ class ImageGateway(Protocol):
     async def generate(
         self,
         *,
-        template_path: Path,
+        template_bytes: bytes,
+        template_filename: str,
         participant_bytes: bytes,
         participant_filename: str,
         participant_content_type: str,
+        identity_closeup_bytes: bytes,
+        identity_closeup_filename: str,
         prompt: str,
         mask_bytes: bytes,
+        mask_filename: str,
     ) -> bytes: ...
 
 
@@ -35,37 +44,44 @@ class OpenAIImageGateway:
     async def generate(
         self,
         *,
-        template_path: Path,
+        template_bytes: bytes,
+        template_filename: str,
         participant_bytes: bytes,
         participant_filename: str,
         participant_content_type: str,
+        identity_closeup_bytes: bytes,
+        identity_closeup_filename: str,
         prompt: str,
         mask_bytes: bytes,
+        mask_filename: str,
     ) -> bytes:
         if not self.api_key:
             raise ImageGenerationError("OPENAI_API_KEY no está configurada en el servidor")
 
-        template_bytes = template_path.read_bytes()
         files = [
-            ("image[]", (template_path.name, template_bytes, "image/png")),
+            ("image[]", (template_filename, template_bytes, "image/png")),
             (
                 "image[]",
                 (participant_filename, participant_bytes, participant_content_type),
             ),
-            ("mask", ("subject-mask.png", mask_bytes, "image/png")),
+            (
+                "image[]",
+                (identity_closeup_filename, identity_closeup_bytes, "image/png"),
+            ),
+            ("mask", (mask_filename, mask_bytes, "image/png")),
         ]
         data = {
             "model": self.model,
             "prompt": prompt,
-            "size": "1536x1024",
-            "quality": "medium",
-            "output_format": "png",
+            "size": OPENAI_IMAGE_SIZE,
+            "quality": OPENAI_IMAGE_QUALITY,
+            "output_format": OPENAI_IMAGE_OUTPUT_FORMAT,
         }
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 response = await client.post(
-                    "https://api.openai.com/v1/images/edits",
+                    OPENAI_IMAGE_ENDPOINT,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     data=data,
                     files=files,

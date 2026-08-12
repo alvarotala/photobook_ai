@@ -29,9 +29,11 @@ SCENES: dict[str, SceneDefinition] = {
         ),
         prompt=(
             "IMPORTANT: The woman in the first image is only a placeholder and MUST NOT appear in the "
-            "result. The first image defines the target rally-car scene. The second image is the actual "
-            "participant who MUST replace the foreground co-driver/passenger inside the transparent masked "
-            "area. Copy the participant's recognizable identity from the second image: face shape, eyes, "
+            "result. The first image defines the target rally-car scene. The second image shows the actual "
+            "participant, and the third image is an enlarged face reference of that same participant. The "
+            "third image is authoritative for identity. Replace the foreground co-driver/passenger inside "
+            "the transparent masked area. Copy the participant's face exactly from the second and third "
+            "images: face shape, eyes, "
             "eyebrows, nose, mouth, skin tone, age, hairstyle, and other key facial features. "
             "Adapt clothing to the existing racing suit and helmet. Keep the driver, car interior, "
             "framing, realistic lighting, shadows, scale, "
@@ -51,9 +53,11 @@ SCENES: dict[str, SceneDefinition] = {
         ),
         prompt=(
             "IMPORTANT: The central winner in the first image is only a placeholder and MUST NOT appear in "
-            "the result. The first image defines the target podium scene. The second image is the actual "
-            "participant who MUST replace only the central winner inside the transparent masked area. Copy "
-            "the participant's recognizable identity from the second image: face shape, eyes, eyebrows, "
+            "the result. The first image defines the target podium scene. The second image shows the actual "
+            "participant, and the third image is an enlarged face reference of that same participant. The "
+            "third image is authoritative for identity. Replace only the central winner inside the "
+            "transparent masked area. Copy the participant's face exactly from the second and third images: "
+            "face shape, eyes, eyebrows, "
             "nose, mouth, skin tone, age, hairstyle, and other key facial features. Create a coherent full "
             "racing-suit body and victory pose. Keep all other fictional teammates, the podium, background, "
             "framing, realistic lighting, shadows, "
@@ -73,9 +77,11 @@ SCENES: dict[str, SceneDefinition] = {
         ),
         prompt=(
             "IMPORTANT: The foreground driver in the first image is only a placeholder and MUST NOT appear "
-            "in the result. The first image defines the target cinematic rally scene. The second image is "
-            "the actual participant who MUST replace the foreground driver inside the transparent masked "
-            "area. Copy the participant's recognizable identity from the second image: face shape, eyes, "
+            "in the result. The first image defines the target cinematic rally scene. The second image shows "
+            "the actual participant, and the third image is an enlarged face reference of that same "
+            "participant. The third image is authoritative for identity. Replace the foreground driver "
+            "inside the transparent masked area. Copy the participant's face exactly from the second and "
+            "third images: face shape, eyes, "
             "eyebrows, nose, mouth, skin tone, age, hairstyle, and other key facial features. "
             "Adapt their body and clothing to the black racing suit and confident hero pose. Keep the rally "
             "car, Paraguay flag, rural background, framing, golden-hour lighting, "
