@@ -1,306 +1,187 @@
 # Photobook AI
 
-Photobook AI es una aplicación para un tótem Android que fotografía al participante y lo integra en una escena de rally mediante inteligencia artificial.
+Aplicación Android para un tótem fotográfico. Captura al participante, envía la fotografía a un servidor Python, genera la composición con OpenAI y muestra un QR con la URL del resultado.
 
-El repositorio contiene:
-
-- Una aplicación Android desarrollada con React Native y Expo.
-- Un servidor Python pequeño que conecta la aplicación con OpenAI.
-- Tres plantillas temporales en `templates/`.
-- Almacenamiento de resultados en archivos, sin base de datos.
+El proyecto no utiliza base de datos. Las imágenes se guardan como archivos en `generated_images/`.
 
 ## Requisitos
 
 - Node.js compatible con Expo SDK 57.
 - pnpm.
 - Python 3.11 o superior.
-- Java 17 para compilar Android localmente. Java 25 puede fallar durante la configuración de CMake.
-- Android SDK instalado mediante Android Studio.
-- Una clave de OpenAI con acceso a generación de imágenes.
-- Android Studio y un emulador, o un dispositivo Android físico.
+- Android Studio con Android SDK y `adb`.
+- Java 17 para compilar Android.
+- Una API key de OpenAI con acceso al modelo de imágenes configurado.
 
-## 1. Instalar la aplicación
+## Instalación
 
 Desde la raíz del repositorio:
 
 ```bash
 pnpm install
-```
-
-## 2. Instalar el servidor Python
-
-Crear un entorno virtual:
-
-```bash
 python3 -m venv .venv
-```
-
-Activarlo e instalar las dependencias:
-
-```bash
 source .venv/bin/activate
 python -m pip install -r server/requirements.txt
-```
-
-En Windows PowerShell, la activación equivalente es:
-
-```powershell
-.venv\Scripts\Activate.ps1
-python -m pip install -r server/requirements.txt
-```
-
-## 3. Configurar las variables de entorno
-
-Toda la configuración del servidor y de la aplicación se lee desde un único archivo `.env`. Copiar el archivo de ejemplo:
-
-```bash
 cp .env.example .env
 ```
 
-Editar `.env`:
+Toda la configuración se lee desde `.env`.
+
+## Variables de entorno
 
 ```dotenv
 OPENAI_API_KEY=sk-...
 OPENAI_IMAGE_MODEL=gpt-image-2
 PUBLIC_BASE_URL=http://192.168.1.50:8000
-
-# Emulador Android
 EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
 
-# Dispositivo físico
-# EXPO_PUBLIC_API_URL=http://192.168.1.50:8000
+# Opcional
+# IMAGES_DIR=./generated_images
 ```
 
-Variables disponibles:
+- `OPENAI_API_KEY`: se utiliza únicamente en el servidor Python.
+- `OPENAI_IMAGE_MODEL`: modelo usado para generar las imágenes.
+- `PUBLIC_BASE_URL`: URL incluida en los QR. Debe ser accesible desde los teléfonos que descargarán el resultado.
+- `EXPO_PUBLIC_API_URL`: URL del servidor incorporada a la aplicación Android.
+- `IMAGES_DIR`: carpeta opcional para guardar resultados. El valor predeterminado es `generated_images/`.
 
-- `OPENAI_API_KEY`: clave utilizada únicamente por el servidor.
-- `OPENAI_IMAGE_MODEL`: modelo de generación de imágenes.
-- `PUBLIC_BASE_URL`: dirección desde la que los teléfonos descargarán las imágenes del QR.
-- `IMAGES_DIR`: directorio de resultados opcional. Por defecto se utiliza `generated_images/`.
-- `EXPO_PUBLIC_API_URL`: dirección del servidor vista desde la aplicación Android.
+Las variables `EXPO_PUBLIC_*` se incorporan al APK durante la compilación. Si cambia la URL del servidor, es necesario volver a generar el APK.
 
-`PUBLIC_BASE_URL` debe usar la IP local o dominio del equipo que ejecuta Python. No debe usar `localhost`, porque el teléfono que escanea el QR no podría acceder a esa dirección.
+## Desarrollo local
 
-Para un dispositivo físico, `PUBLIC_BASE_URL` y `EXPO_PUBLIC_API_URL` normalmente tendrán la misma IP local. Para el emulador, `EXPO_PUBLIC_API_URL` debe usar `10.0.2.2`, mientras que `PUBLIC_BASE_URL` debe continuar usando una dirección accesible por los teléfonos.
-
-El dispositivo Android, el servidor y los teléfonos que escanearán el QR deben poder comunicarse por la misma red.
-
-## 4. Iniciar el servidor
-
-Con el entorno virtual activado:
-
-```bash
-python -m server
-```
-
-También puede iniciarse desde macOS o Linux mediante:
+### Servidor
 
 ```bash
 pnpm server
 ```
 
-El servidor escucha en `http://0.0.0.0:8000`.
-
-Comprobar su estado:
+El servidor escucha en el puerto `8000`. Para comprobarlo:
 
 ```bash
 curl http://localhost:8000/health
 ```
 
-Una configuración correcta devuelve una respuesta similar a:
+### Android
 
-```json
-{
-  "status": "ok",
-  "openai_configured": true,
-  "model": "gpt-image-2"
-}
+Para el emulador estándar de Android:
+
+```dotenv
+EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
 ```
 
-## 5. Iniciar la aplicación Android
-
-En otra terminal:
-
-```bash
-pnpm android
-```
-
-La cámara debe probarse en un dispositivo físico o en un emulador que tenga una cámara configurada.
-
-## 6. Compilar un APK local para un dispositivo físico
-
-Antes de compilar, configurar `.env` con la IP local del equipo que ejecutará el servidor. `10.0.2.2` funciona solamente desde el emulador Android.
-
-Ejemplo:
+Para un dispositivo físico, usar la IP LAN de la computadora:
 
 ```dotenv
 EXPO_PUBLIC_API_URL=http://192.168.1.50:8000
 PUBLIC_BASE_URL=http://192.168.1.50:8000
 ```
 
-El teléfono y el servidor deben estar conectados a la misma red.
+El dispositivo y la computadora deben estar conectados a la misma red.
 
-### Configurar Java 17 en macOS con Homebrew
+Iniciar la aplicación:
 
-Instalar OpenJDK 17:
+```bash
+pnpm android
+```
+
+La cámara del emulador puede mostrar preview correctamente y producir capturas negras. Para validar el flujo final, usar un dispositivo Android físico.
+
+## Deploy del servidor
+
+En producción, configurar un dominio HTTPS público:
+
+```dotenv
+OPENAI_API_KEY=sk-...
+OPENAI_IMAGE_MODEL=gpt-image-2
+PUBLIC_BASE_URL=https://photos.example.com
+EXPO_PUBLIC_API_URL=https://photos.example.com
+```
+
+Iniciar el servicio:
+
+```bash
+source .venv/bin/activate
+python -m server
+```
+
+El proceso debe ejecutarse mediante un supervisor como `systemd`, Docker o el sistema utilizado por el proveedor. Colocar Nginx, Caddy o un proxy equivalente delante de `localhost:8000` para proporcionar HTTPS.
+
+El puerto `8000` no debe exponerse directamente a internet. El endpoint de generación no incluye autenticación propia; el proxy o la infraestructura deben aplicar límites de solicitudes y el control de acceso correspondiente.
+
+La carpeta configurada en `IMAGES_DIR` debe ser persistente y tener permisos de escritura. Definir también una política de eliminación para las fotografías antiguas.
+
+## Compilar el APK final
+
+Antes de compilar, comprobar que `.env` contiene las URLs HTTPS definitivas del servidor.
+
+### Java y Android SDK en macOS
+
+Instalar Java 17:
 
 ```bash
 brew install openjdk@17
 ```
 
-Agregar Java 17 al final de `~/.zshrc`:
+Agregar estas variables a `~/.zshrc`:
 
 ```bash
-printf '\nexport JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"\nexport PATH="$JAVA_HOME/bin:$PATH"\n' >> ~/.zshrc
-```
-
-Aplicar la configuración y comprobar la versión:
-
-```bash
-source ~/.zshrc
-java -version
-```
-
-La versión mostrada debe ser Java 17.
-
-### Configurar el Android SDK en macOS
-
-Agregar el SDK y `adb` al final de `~/.zshrc`:
-
-```bash
-printf '\nexport ANDROID_HOME="$HOME/Library/Android/sdk"\nexport PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"\n' >> ~/.zshrc
+export JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
 ```
 
 Aplicar la configuración:
 
 ```bash
 source ~/.zshrc
+java -version
 ```
 
-### Generar el proyecto nativo
+### Generar y compilar Android
 
 Desde la raíz del repositorio:
 
 ```bash
 pnpm exec expo prebuild --platform android --no-install
-```
-
-Crear `android/local.properties` con la ruta del SDK:
-
-```bash
 printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
-```
-
-`prebuild` es necesario la primera vez y después de cambios en la configuración nativa de Expo. No hace falta repetirlo para cambios normales de TypeScript o JavaScript.
-
-### Generar el APK release
-
-```bash
 cd android
 ./gradlew --stop
 NODE_ENV=production ./gradlew assembleRelease
 ```
 
-El APK instalable se genera en:
+El APK se genera en:
 
 ```text
 android/app/build/outputs/apk/release/app-release.apk
 ```
 
-Desde el directorio `android/`, puede instalarse por USB con:
+Instalarlo manualmente o mediante USB:
 
 ```bash
 adb devices
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-También puede copiarse el APK al teléfono e instalarse manualmente. Android puede solicitar autorización para instalar aplicaciones desde esa fuente.
-
-### Error `CLEARTEXT COMMUNICATION NOT PERMITTED`
-
-La aplicación utiliza HTTP dentro de la red privada del evento. El plugin local `plugins/withCleartextTraffic.js` agrega `android:usesCleartextTraffic="true"` al manifiesto release durante `expo prebuild`.
-
-Si el APK fue generado antes de incorporar esta configuración, ejecutar nuevamente:
-
-```bash
-pnpm exec expo prebuild --platform android --no-install
-cd android
-NODE_ENV=production ./gradlew assembleRelease
-```
-
-## Endpoints del servidor
-
-### Estado
-
-```http
-GET /health
-```
-
-### Generar una composición
-
-```http
-POST /api/generate
-Content-Type: multipart/form-data
-```
-
-Campos:
-
-- `scene`: `car`, `podium` o `hero`.
-- `photo`: archivo JPEG, PNG o WebP de hasta 20 MB.
-
-Respuesta:
-
-```json
-{
-  "id": "identificador-aleatorio",
-  "image_url": "http://servidor:8000/images/identificador-aleatorio.png",
-  "source_image_url": "http://servidor:8000/images/identificador-aleatorio-S.png",
-  "face_reference_url": "http://servidor:8000/images/identificador-aleatorio-F.png",
-  "mask_url": "http://servidor:8000/images/identificador-aleatorio-M.png",
-  "template_url": "http://servidor:8000/images/identificador-aleatorio-T.png",
-  "request_manifest_url": "http://servidor:8000/images/identificador-aleatorio-REQUEST.json"
-}
-```
-
-### Descargar una imagen
-
-```http
-GET /images/<identificador>.png
-```
-
-## Ejecutar las verificaciones
-
-Aplicación:
+## Verificaciones
 
 ```bash
 pnpm typecheck
-pnpm export:android
-```
-
-Servidor:
-
-```bash
 pnpm server:test
 ```
 
-## Almacenamiento
+Las pruebas del servidor utilizan un gateway falso y no consumen créditos de OpenAI.
 
-Cada experiencia guarda un paquete auditable en `generated_images/` con el mismo identificador aleatorio:
+## Archivos generados
 
-- `<id>.png`: composición generada por OpenAI.
-- `<id>-T.png`: plantilla enviada como primera imagen.
-- `<id>-S.png`: captura completa enviada como segunda imagen, normalizada a PNG.
-- `<id>-F.png`: primer plano del rostro enviado como tercera imagen.
-- `<id>-M.png`: máscara enviada en el campo `mask`.
-- `<id>-REQUEST.json`: endpoint, modelo, parámetros, prompt, orden multipart y hashes SHA-256. Nunca incluye la clave API.
+Por cada experiencia, `generated_images/` contiene el resultado y los archivos enviados a OpenAI con un mismo identificador aleatorio:
 
-No se utiliza una base de datos y los archivos no se eliminan automáticamente.
+```text
+<id>.png
+<id>-T.png
+<id>-S.png
+<id>-F.png
+<id>-M.png
+<id>-REQUEST.json
+```
 
-Para cumplir con la política de privacidad del evento, el operador debe eliminar periódicamente los archivos antiguos de este directorio.
-
-## Seguridad de despliegue
-
-- `.env` y `generated_images/` están excluidos del repositorio.
-- La clave de OpenAI nunca debe incorporarse a la aplicación Android.
-- El endpoint de generación no tiene autenticación y está diseñado para una red privada controlada.
-- Si el servidor se publica en internet, debe colocarse detrás de HTTPS, autenticación y límites de solicitudes.
+`.env` y `generated_images/` están excluidos del repositorio. Nunca se debe incluir la API key de OpenAI dentro del código o de un archivo versionado.
