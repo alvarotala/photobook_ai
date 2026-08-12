@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-import hashlib
 import logging
 from pathlib import Path
 from typing import Annotated
@@ -18,10 +17,6 @@ from .identity_reference import (
     create_centered_identity_closeup,
 )
 from .openai_gateway import (
-    OPENAI_IMAGE_ENDPOINT,
-    OPENAI_IMAGE_OUTPUT_FORMAT,
-    OPENAI_IMAGE_QUALITY,
-    OPENAI_IMAGE_SIZE,
     ImageGateway,
     ImageGenerationError,
     OpenAIImageGateway,
@@ -108,51 +103,19 @@ def create_app(
         image_id = storage.create_id()
         template_bytes = scene_definition.template_path(settings.templates_dir).read_bytes()
         mask_bytes = scene_definition.mask.to_png()
-        template_filename = storage.save_png(template_bytes, image_id, suffix="-T")
-        source_filename = storage.save_png(source_png, image_id, suffix="-S")
-        identity_filename = storage.save_png(identity_closeup_png, image_id, suffix="-F")
-        mask_filename = storage.save_png(mask_bytes, image_id, suffix="-M")
-        request_manifest = {
-            "endpoint": OPENAI_IMAGE_ENDPOINT,
-            "model": settings.model,
-            "size": OPENAI_IMAGE_SIZE,
-            "quality": OPENAI_IMAGE_QUALITY,
-            "output_format": OPENAI_IMAGE_OUTPUT_FORMAT,
-            "scene": scene,
-            "prompt": scene_definition.prompt,
-            "multipart": [
-                {
-                    "field": "image[]",
-                    "role": "template",
-                    "filename": template_filename,
-                    "sha256": hashlib.sha256(template_bytes).hexdigest(),
-                },
-                {
-                    "field": "image[]",
-                    "role": "participant-source",
-                    "filename": source_filename,
-                    "sha256": hashlib.sha256(source_png).hexdigest(),
-                },
-                {
-                    "field": "image[]",
-                    "role": "participant-face-reference",
-                    "filename": identity_filename,
-                    "sha256": hashlib.sha256(identity_closeup_png).hexdigest(),
-                },
-                {
-                    "field": "mask",
-                    "role": "edit-mask",
-                    "filename": mask_filename,
-                    "sha256": hashlib.sha256(mask_bytes).hexdigest(),
-                },
-            ],
-        }
-        request_filename = storage.save_request_manifest(request_manifest, image_id)
-        logger.info(
-            "Sending scene=%s payload=%s to OpenAI",
-            scene,
-            request_filename,
-        )
+        template_filename = f"{image_id}-T.png"
+        source_filename = f"{image_id}-S.png"
+        identity_filename = f"{image_id}-F.png"
+        mask_filename = f"{image_id}-M.png"
+
+        # Archivos de depuración deshabilitados para producción. Descomentar
+        # temporalmente estas líneas para guardar exactamente lo enviado a OpenAI.
+        # storage.save_png(template_bytes, image_id, suffix="-T")
+        # storage.save_png(source_png, image_id, suffix="-S")
+        # storage.save_png(identity_closeup_png, image_id, suffix="-F")
+        # storage.save_png(mask_bytes, image_id, suffix="-M")
+
+        logger.info("Sending scene=%s to OpenAI", scene)
         image_bytes = await app.state.gateway.generate(
             template_bytes=template_bytes,
             template_filename=template_filename,
@@ -176,11 +139,6 @@ def create_app(
         return {
             "id": image_id,
             "image_url": f"{base_url}/images/{filename}",
-            "source_image_url": f"{base_url}/images/{source_filename}",
-            "face_reference_url": f"{base_url}/images/{identity_filename}",
-            "mask_url": f"{base_url}/images/{mask_filename}",
-            "template_url": f"{base_url}/images/{template_filename}",
-            "request_manifest_url": f"{base_url}/images/{request_filename}",
         }
 
     return app

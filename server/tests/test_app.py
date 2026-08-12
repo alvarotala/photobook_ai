@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -71,37 +70,14 @@ class PhotobookServerTests(unittest.TestCase):
             )
             saved_path = self.settings.images_dir / f"{payload['id']}.png"
             self.assertEqual(saved_path.read_bytes(), GENERATED_PNG)
-            source_path = self.settings.images_dir / f"{payload['id']}-S.png"
-            face_path = self.settings.images_dir / f"{payload['id']}-F.png"
-            mask_path = self.settings.images_dir / f"{payload['id']}-M.png"
-            template_path = self.settings.images_dir / f"{payload['id']}-T.png"
-            request_path = self.settings.images_dir / f"{payload['id']}-REQUEST.json"
-            self.assertTrue(source_path.is_file())
-            self.assertTrue(source_path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
-            self.assertTrue(face_path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
-            self.assertTrue(mask_path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
-            self.assertEqual(template_path.read_bytes(), b"template")
-            self.assertEqual(
-                payload["source_image_url"],
-                f"https://photos.example.test/images/{payload['id']}-S.png",
-            )
-            self.assertEqual(
-                payload["face_reference_url"],
-                f"https://photos.example.test/images/{payload['id']}-F.png",
-            )
-            manifest = json.loads(request_path.read_text(encoding="utf-8"))
-            self.assertEqual(manifest["quality"], "high")
-            self.assertEqual(
-                [part["role"] for part in manifest["multipart"]],
-                ["template", "participant-source", "participant-face-reference", "edit-mask"],
-            )
+            self.assertEqual([path.name for path in self.settings.images_dir.iterdir()], [saved_path.name])
             self.assertEqual(len(self.gateway.calls), 1)
             call = self.gateway.calls[0]
-            self.assertEqual(call["template_bytes"], template_path.read_bytes())
-            self.assertEqual(call["participant_bytes"], source_path.read_bytes())
-            self.assertEqual(call["identity_closeup_bytes"], face_path.read_bytes())
-            self.assertEqual(call["mask_bytes"], mask_path.read_bytes())
-            self.assertEqual(call["mask_filename"], mask_path.name)
+            self.assertEqual(call["template_bytes"], b"template")
+            self.assertTrue(call["participant_bytes"].startswith(b"\x89PNG\r\n\x1a\n"))
+            self.assertTrue(call["identity_closeup_bytes"].startswith(b"\x89PNG\r\n\x1a\n"))
+            self.assertTrue(call["mask_bytes"].startswith(b"\x89PNG\r\n\x1a\n"))
+            self.assertEqual(call["mask_filename"], f"{payload['id']}-M.png")
             self.assertIn("authoritative for identity", str(call["prompt"]))
             mask = call["mask_bytes"]
             self.assertIsInstance(mask, bytes)
