@@ -88,13 +88,13 @@ La cámara del emulador puede mostrar preview correctamente y producir capturas 
 
 ## Deploy del servidor
 
-En producción, configurar un dominio HTTPS público:
+En producción, configurar la URL HTTP pública del servidor:
 
 ```dotenv
 OPENAI_API_KEY=sk-...
 OPENAI_IMAGE_MODEL=gpt-image-2
-PUBLIC_BASE_URL=https://photos.example.com
-EXPO_PUBLIC_API_URL=https://photos.example.com
+PUBLIC_BASE_URL=http://photos.example.com
+EXPO_PUBLIC_API_URL=http://photos.example.com
 ```
 
 Iniciar el servicio:
@@ -104,7 +104,7 @@ source .venv/bin/activate
 python -m server
 ```
 
-El proceso debe ejecutarse mediante un supervisor como `systemd`, Docker o el sistema utilizado por el proveedor. Colocar Nginx, Caddy o un proxy equivalente delante de `localhost:8000` para proporcionar HTTPS.
+El proceso debe ejecutarse mediante un supervisor como `systemd`, Docker o el sistema utilizado por el proveedor. Puede colocarse Nginx, Caddy o un proxy equivalente delante de `localhost:8000` para publicar el servicio por HTTP.
 
 El puerto `8000` no debe exponerse directamente a internet. El endpoint de generación no incluye autenticación propia; el proxy o la infraestructura deben aplicar límites de solicitudes y el control de acceso correspondiente.
 
@@ -112,7 +112,7 @@ La carpeta configurada en `IMAGES_DIR` debe ser persistente y tener permisos de 
 
 ## Compilar el APK final
 
-Antes de compilar, comprobar que `.env` contiene las URLs HTTPS definitivas del servidor.
+Antes de compilar, comprobar que `.env` contiene las URLs HTTP definitivas del servidor. La aplicación Android está configurada para permitir tráfico HTTP sin TLS.
 
 ### Java y Android SDK en macOS
 
