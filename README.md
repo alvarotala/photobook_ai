@@ -129,7 +129,7 @@ El deploy con Docker Compose levanta tres servicios:
 
 Nginx redirige HTTP a HTTPS, sirve `/images/...` directamente desde `generated_images/` y envía las demás rutas al servidor Python mediante `proxy_pass`. La carpeta se monta en ambos contenedores, con acceso de solo lectura para Nginx.
 
-El registro DNS `A` de `sadmonkey.com` debe apuntar a la IP pública del servidor. Los puertos TCP `80` y `443` deben estar permitidos tanto en UFW como en el firewall del proveedor.
+El registro DNS `A` de `sadmonkey.app` debe apuntar a la IP pública del servidor. Los puertos TCP `80` y `443` deben estar permitidos tanto en UFW como en el firewall del proveedor.
 
 Configurar en `.env` la URL HTTPS pública:
 
@@ -137,8 +137,8 @@ Configurar en `.env` la URL HTTPS pública:
 OPENAI_API_KEY=sk-...
 OPENAI_IMAGE_MODEL=gpt-image-2
 OPENAI_IMAGE_PROFILE=balanced
-PUBLIC_BASE_URL=https://sadmonkey.com
-EXPO_PUBLIC_API_URL=https://sadmonkey.com
+PUBLIC_BASE_URL=https://sadmonkey.app
+EXPO_PUBLIC_API_URL=https://sadmonkey.app
 ```
 
 ### Emitir el certificado por primera vez
@@ -148,7 +148,7 @@ Arrancar temporalmente la API y Nginx en HTTP:
 ```bash
 docker compose down
 docker compose --profile bootstrap up -d --build api nginx-bootstrap
-curl http://sadmonkey.com/health
+curl http://sadmonkey.app/health
 ```
 
 Emitir el certificado, reemplazando el correo:
@@ -156,9 +156,9 @@ Emitir el certificado, reemplazando el correo:
 ```bash
 docker compose run --rm certbot certonly \
   --webroot --webroot-path /var/www/certbot \
-  --email admin@sadmonkey.com \
+  --email admin@sadmonkey.app \
   --agree-tos --no-eff-email \
-  -d sadmonkey.com
+  -d sadmonkey.app
 ```
 
 Detener el servidor temporal e iniciar Nginx con HTTPS:
@@ -167,7 +167,7 @@ Detener el servidor temporal e iniciar Nginx con HTTPS:
 docker compose stop nginx-bootstrap
 docker compose rm -f nginx-bootstrap
 docker compose up -d api nginx
-curl https://sadmonkey.com/health
+curl https://sadmonkey.app/health
 ```
 
 ### Renovación
