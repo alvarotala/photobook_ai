@@ -61,6 +61,28 @@ El servidor escucha en el puerto `8000`. Para comprobarlo:
 curl http://localhost:8000/health
 ```
 
+### Medir la velocidad de OpenAI y xAI
+
+Ambos comandos envían solo la plantilla y la foto del sujeto, sin recorte facial ni
+máscara, para permitir una comparación directa.
+
+OpenAI:
+
+```bash
+.venv/bin/python -m server.benchmark_openai /path/a/la/foto.jpg car
+```
+
+xAI:
+
+```bash
+.venv/bin/python -m server.benchmark_xai /path/a/la/foto.jpg car
+```
+
+El segundo argumento es la escena: `car`, `podium` o `hero`. Los comandos muestran
+el tiempo de preparación, el tiempo del proveedor y el tiempo total. OpenAI usa
+`OPENAI_API_KEY` y `OPENAI_IMAGE_MODEL`; xAI usa `XAI_API_KEY` y, opcionalmente,
+`XAI_IMAGE_MODEL`. Los resultados se guardan en `generated_images/`.
+
 ### Android
 
 Para el emulador estándar de Android:

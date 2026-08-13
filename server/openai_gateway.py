@@ -55,21 +55,29 @@ class OpenAIImageGateway:
         mask_bytes: bytes,
         mask_filename: str,
     ) -> bytes:
+        return await self.generate_from_images(
+            images=[
+                (template_filename, template_bytes, "image/png"),
+                (participant_filename, participant_bytes, participant_content_type),
+                (identity_closeup_filename, identity_closeup_bytes, "image/png"),
+            ],
+            prompt=prompt,
+            mask=(mask_filename, mask_bytes, "image/png"),
+        )
+
+    async def generate_from_images(
+        self,
+        *,
+        images: list[tuple[str, bytes, str]],
+        prompt: str,
+        mask: tuple[str, bytes, str] | None = None,
+    ) -> bytes:
         if not self.api_key:
             raise ImageGenerationError("OPENAI_API_KEY no está configurada en el servidor")
 
-        files = [
-            ("image[]", (template_filename, template_bytes, "image/png")),
-            (
-                "image[]",
-                (participant_filename, participant_bytes, participant_content_type),
-            ),
-            (
-                "image[]",
-                (identity_closeup_filename, identity_closeup_bytes, "image/png"),
-            ),
-            ("mask", (mask_filename, mask_bytes, "image/png")),
-        ]
+        files = [("image[]", image) for image in images]
+        if mask is not None:
+            files.append(("mask", mask))
         data = {
             "model": self.model,
             "prompt": prompt,
