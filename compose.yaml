@@ -30,7 +30,35 @@ services:
         condition: service_healthy
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./generated_images:/var/www/generated_images:ro
+      - certbot_www:/var/www/certbot:ro
+      - letsencrypt:/etc/letsencrypt:ro
     restart: unless-stopped
+
+  nginx-bootstrap:
+    image: nginx:1.28-alpine
+    profiles:
+      - bootstrap
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/bootstrap.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./generated_images:/var/www/generated_images:ro
+      - certbot_www:/var/www/certbot:ro
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot_www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+
+volumes:
+  certbot_www:
+  letsencrypt:

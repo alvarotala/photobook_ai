@@ -121,40 +121,67 @@ La cámara del emulador puede mostrar preview correctamente y producir capturas 
 
 ## Deploy del servidor
 
-El deploy con Docker Compose levanta dos servicios:
+El deploy con Docker Compose levanta tres servicios:
 
-- `nginx`, único servicio publicado, en el puerto `80`.
+- `nginx`, único servicio publicado, en los puertos `80` y `443`.
 - `api`, el servidor FastAPI, accesible solamente dentro de la red de Docker en el puerto `8000`.
+- `certbot`, utilizado para emitir y renovar el certificado de Let's Encrypt.
 
-Nginx sirve `/images/...` directamente desde `generated_images/` y envía las demás rutas al servidor Python mediante `proxy_pass`. La carpeta se monta en ambos contenedores, con acceso de solo lectura para Nginx.
+Nginx redirige HTTP a HTTPS, sirve `/images/...` directamente desde `generated_images/` y envía las demás rutas al servidor Python mediante `proxy_pass`. La carpeta se monta en ambos contenedores, con acceso de solo lectura para Nginx.
 
-Configurar en `.env` la URL HTTP pública sin `:8000`:
+El registro DNS `A` de `sadmonkey.com` debe apuntar a la IP pública del servidor. Los puertos TCP `80` y `443` deben estar permitidos tanto en UFW como en el firewall del proveedor.
+
+Configurar en `.env` la URL HTTPS pública:
 
 ```dotenv
 OPENAI_API_KEY=sk-...
 OPENAI_IMAGE_MODEL=gpt-image-2
 OPENAI_IMAGE_PROFILE=balanced
-PUBLIC_BASE_URL=http://photos.example.com
-EXPO_PUBLIC_API_URL=http://photos.example.com
+PUBLIC_BASE_URL=https://sadmonkey.com
+EXPO_PUBLIC_API_URL=https://sadmonkey.com
 ```
 
-Construir e iniciar los servicios:
+### Emitir el certificado por primera vez
 
-```bash
-docker compose up -d --build
-```
-
-Comprobar el proxy y consultar los logs:
-
-```bash
-curl http://localhost/health
-docker compose logs -f
-```
-
-Para detener los servicios:
+Arrancar temporalmente la API y Nginx en HTTP:
 
 ```bash
 docker compose down
+docker compose --profile bootstrap up -d --build api nginx-bootstrap
+curl http://sadmonkey.com/health
+```
+
+Emitir el certificado, reemplazando el correo:
+
+```bash
+docker compose run --rm certbot certonly \
+  --webroot --webroot-path /var/www/certbot \
+  --email admin@sadmonkey.com \
+  --agree-tos --no-eff-email \
+  -d sadmonkey.com
+```
+
+Detener el servidor temporal e iniciar Nginx con HTTPS:
+
+```bash
+docker compose stop nginx-bootstrap
+docker compose rm -f nginx-bootstrap
+docker compose up -d api nginx
+curl https://sadmonkey.com/health
+```
+
+### Renovación
+
+Probar la renovación sin modificar el certificado:
+
+```bash
+docker compose run --rm certbot renew --dry-run
+```
+
+Agregar al `crontab` de root una ejecución diaria. Nginx se recarga después para tomar un certificado renovado:
+
+```cron
+17 3 * * * cd /opt/photobook_ai && docker compose run --rm certbot renew --quiet && docker compose exec nginx nginx -s reload
 ```
 
 El puerto `8000` no debe exponerse directamente a internet. El endpoint de generación no incluye autenticación propia; el proxy o la infraestructura deben aplicar límites de solicitudes y el control de acceso correspondiente.
