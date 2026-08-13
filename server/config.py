@@ -22,6 +22,7 @@ class Settings:
     public_base_url: str | None
     images_dir: Path
     templates_dir: Path
+    image_profile: str = "balanced"
     max_upload_bytes: int = 20 * 1024 * 1024
 
     @classmethod
@@ -30,6 +31,7 @@ class Settings:
         return cls(
             api_key=os.getenv("OPENAI_API_KEY", "").strip(),
             model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-2").strip(),
+            image_profile=os.getenv("OPENAI_IMAGE_PROFILE", "balanced").strip(),
             public_base_url=os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/") or None,
             images_dir=Path(os.getenv("IMAGES_DIR", PROJECT_ROOT / "generated_images")).resolve(),
             templates_dir=(PROJECT_ROOT / "templates").resolve(),

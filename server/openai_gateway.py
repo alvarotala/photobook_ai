@@ -19,19 +19,16 @@ class ImageGenerationError(RuntimeError):
 
 
 class ImageGateway(Protocol):
-    async def generate(
+    async def generate_from_images(
         self,
         *,
-        template_bytes: bytes,
-        template_filename: str,
-        participant_bytes: bytes,
-        participant_filename: str,
-        participant_content_type: str,
-        identity_closeup_bytes: bytes,
-        identity_closeup_filename: str,
+        images: list[tuple[str, bytes, str]],
         prompt: str,
-        mask_bytes: bytes,
-        mask_filename: str,
+        mask: tuple[str, bytes, str] | None = None,
+        size: str = OPENAI_IMAGE_SIZE,
+        quality: str = OPENAI_IMAGE_QUALITY,
+        output_format: str = OPENAI_IMAGE_OUTPUT_FORMAT,
+        output_compression: int | None = None,
     ) -> bytes: ...
 
 
@@ -71,6 +68,10 @@ class OpenAIImageGateway:
         images: list[tuple[str, bytes, str]],
         prompt: str,
         mask: tuple[str, bytes, str] | None = None,
+        size: str = OPENAI_IMAGE_SIZE,
+        quality: str = OPENAI_IMAGE_QUALITY,
+        output_format: str = OPENAI_IMAGE_OUTPUT_FORMAT,
+        output_compression: int | None = None,
     ) -> bytes:
         if not self.api_key:
             raise ImageGenerationError("OPENAI_API_KEY no está configurada en el servidor")
@@ -81,10 +82,12 @@ class OpenAIImageGateway:
         data = {
             "model": self.model,
             "prompt": prompt,
-            "size": OPENAI_IMAGE_SIZE,
-            "quality": OPENAI_IMAGE_QUALITY,
-            "output_format": OPENAI_IMAGE_OUTPUT_FORMAT,
+            "size": size,
+            "quality": quality,
+            "output_format": output_format,
         }
+        if output_compression is not None:
+            data["output_compression"] = str(output_compression)
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:

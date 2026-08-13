@@ -32,8 +32,9 @@ Toda la configuración se lee desde `.env`.
 ```dotenv
 OPENAI_API_KEY=sk-...
 OPENAI_IMAGE_MODEL=gpt-image-2
-PUBLIC_BASE_URL=http://192.168.1.50:8000
-EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+OPENAI_IMAGE_PROFILE=balanced
+PUBLIC_BASE_URL=http://192.168.1.50
+EXPO_PUBLIC_API_URL=http://10.0.2.2
 
 # Opcional
 # IMAGES_DIR=./generated_images
@@ -41,6 +42,7 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
 
 - `OPENAI_API_KEY`: se utiliza únicamente en el servidor Python.
 - `OPENAI_IMAGE_MODEL`: modelo usado para generar las imágenes.
+- `OPENAI_IMAGE_PROFILE`: perfil `fast`, `balanced` o `quality` usado por el servidor.
 - `PUBLIC_BASE_URL`: URL incluida en los QR. Debe ser accesible desde los teléfonos que descargarán el resultado.
 - `EXPO_PUBLIC_API_URL`: URL del servidor incorporada a la aplicación Android.
 - `IMAGES_DIR`: carpeta opcional para guardar resultados. El valor predeterminado es `generated_images/`.
@@ -63,14 +65,22 @@ curl http://localhost:8000/health
 
 ### Medir la velocidad de OpenAI y xAI
 
-Ambos comandos envían solo la plantilla y la foto del sujeto, sin recorte facial ni
-máscara, para permitir una comparación directa.
+El benchmark de OpenAI envía la plantilla y la foto del sujeto. El de xAI elimina
+localmente al placeholder de la plantilla y envía el sujeto primero, la plantilla
+recortada segunda y un recorte facial como tercera referencia. xAI no recibe un archivo
+de máscara separado.
 
 OpenAI:
 
 ```bash
-.venv/bin/python -m server.benchmark_openai /path/a/la/foto.jpg car
+.venv/bin/python -m server.benchmark_openai /path/a/la/foto.jpg car --profile fast
 ```
+
+Perfiles disponibles: `fast` usa `1152x640`, calidad baja y JPEG; `balanced` usa
+`1536x1024`, calidad media y JPEG; `quality` reproduce la salida original de calidad
+alta en PNG. El servidor usa el perfil indicado por `OPENAI_IMAGE_PROFILE` y su valor
+predeterminado es `balanced`. El benchmark usa `fast` si se omite `--profile`. Las
+definiciones de los perfiles están centralizadas en `server/image_profiles.py`.
 
 xAI:
 
@@ -81,7 +91,8 @@ xAI:
 El segundo argumento es la escena: `car`, `podium` o `hero`. Los comandos muestran
 el tiempo de preparación, el tiempo del proveedor y el tiempo total. OpenAI usa
 `OPENAI_API_KEY` y `OPENAI_IMAGE_MODEL`; xAI usa `XAI_API_KEY` y, opcionalmente,
-`XAI_IMAGE_MODEL`. Los resultados se guardan en `generated_images/`.
+`XAI_IMAGE_MODEL`. Los resultados se guardan en `generated_images/`. El benchmark de
+xAI también guarda las tres entradas exactas con sufijos `-T`, `-S` y `-F` para debug.
 
 ### Android
 
@@ -91,7 +102,7 @@ Para el emulador estándar de Android:
 EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
 ```
 
-Para un dispositivo físico, usar la IP LAN de la computadora:
+Para un dispositivo físico conectado al servidor local sin Docker, usar la IP LAN de la computadora:
 
 ```dotenv
 EXPO_PUBLIC_API_URL=http://192.168.1.50:8000
@@ -110,27 +121,45 @@ La cámara del emulador puede mostrar preview correctamente y producir capturas 
 
 ## Deploy del servidor
 
-En producción, configurar la URL HTTP pública del servidor:
+El deploy con Docker Compose levanta dos servicios:
+
+- `nginx`, único servicio publicado, en el puerto `80`.
+- `api`, el servidor FastAPI, accesible solamente dentro de la red de Docker en el puerto `8000`.
+
+Nginx sirve `/images/...` directamente desde `generated_images/` y envía las demás rutas al servidor Python mediante `proxy_pass`. La carpeta se monta en ambos contenedores, con acceso de solo lectura para Nginx.
+
+Configurar en `.env` la URL HTTP pública sin `:8000`:
 
 ```dotenv
 OPENAI_API_KEY=sk-...
 OPENAI_IMAGE_MODEL=gpt-image-2
+OPENAI_IMAGE_PROFILE=balanced
 PUBLIC_BASE_URL=http://photos.example.com
 EXPO_PUBLIC_API_URL=http://photos.example.com
 ```
 
-Iniciar el servicio:
+Construir e iniciar los servicios:
 
 ```bash
-source .venv/bin/activate
-python -m server
+docker compose up -d --build
 ```
 
-El proceso debe ejecutarse mediante un supervisor como `systemd`, Docker o el sistema utilizado por el proveedor. Puede colocarse Nginx, Caddy o un proxy equivalente delante de `localhost:8000` para publicar el servicio por HTTP.
+Comprobar el proxy y consultar los logs:
+
+```bash
+curl http://localhost/health
+docker compose logs -f
+```
+
+Para detener los servicios:
+
+```bash
+docker compose down
+```
 
 El puerto `8000` no debe exponerse directamente a internet. El endpoint de generación no incluye autenticación propia; el proxy o la infraestructura deben aplicar límites de solicitudes y el control de acceso correspondiente.
 
-La carpeta configurada en `IMAGES_DIR` debe ser persistente y tener permisos de escritura. Definir también una política de eliminación para las fotografías antiguas.
+`generated_images/` queda persistida en el host y debe tener permisos de escritura. Definir también una política de eliminación para las fotografías antiguas.
 
 ## Compilar el APK final
 

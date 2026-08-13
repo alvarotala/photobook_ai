@@ -2,30 +2,85 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from io import BytesIO
 import os
 from pathlib import Path
 from time import perf_counter
 
 from .config import Settings
-from .identity_reference import IdentityReferenceError, convert_source_to_png
+from .identity_reference import (
+    IdentityReferenceError,
+    convert_source_to_png,
+    create_centered_identity_closeup,
+)
 from .openai_gateway import ImageGenerationError
 from .scenes import SCENES
 from .storage import ImageStorage
 from .xai_gateway import XAIImageGateway
 
 
-THIRD_IMAGE_INSTRUCTION = (
-    ", and the third image is an enlarged face reference of that same participant. "
-    "The third image is authoritative for identity."
-)
+XAI_SCENE_PROMPTS = {
+    "car": (
+        "Create a new photorealistic composite. IMAGE 1 is the actual participant and "
+        "the primary subject. IMAGE 2 is the target rally-car scene with a transparent "
+        "empty area in the foreground passenger/co-driver position. IMAGE 3 is "
+        "a close-up of the participant in IMAGE 1 and is authoritative for facial "
+        "identity. Place the participant from IMAGES 1 and 3 into the foreground "
+        "passenger position, filling the transparent area of IMAGE 2 completely. "
+        "The final person must be recognizably the participant: preserve face shape, "
+        "eyes, eyebrows, nose, mouth, skin tone, age, and hairstyle. Adapt clothing to "
+        "the racing suit and helmet. Recreate the driver, car interior, framing, "
+        "lighting, shadows, scale, perspective, and cinematic style from IMAGE 2. "
+        "Do not return IMAGE 2 unchanged. No text, logos, borders, or extra people."
+    ),
+    "podium": (
+        "Create a new photorealistic composite. IMAGE 1 is the actual participant and "
+        "the primary subject. IMAGE 2 is the target podium scene with a transparent "
+        "empty area in the central winner position. IMAGE 3 is a close-up of the "
+        "participant in IMAGE 1 and is "
+        "authoritative for facial identity. Place the participant from IMAGES 1 and 3 "
+        "as the central winner, filling the transparent area of IMAGE 2 completely. The "
+        "final person must be recognizably the participant: preserve face shape, eyes, "
+        "eyebrows, nose, mouth, skin tone, age, and hairstyle. Create a coherent full "
+        "racing-suit body and victory pose. Recreate the teammates, podium, background, "
+        "framing, lighting, shadows, scale, and perspective from IMAGE 2. Do not return "
+        "IMAGE 2 unchanged. No text, logos, borders, or extra people."
+    ),
+    "hero": (
+        "Create a new photorealistic composite. IMAGE 1 is the actual participant and "
+        "the primary subject. IMAGE 2 is the target cinematic rally scene with a "
+        "transparent empty area in the foreground driver position. IMAGE 3 is a "
+        "close-up of the participant in "
+        "IMAGE 1 and is authoritative for facial identity. Place the participant from "
+        "IMAGES 1 and 3 as the foreground driver, filling the transparent area of "
+        "IMAGE 2 completely. The final person must be recognizably the participant: preserve "
+        "face shape, eyes, eyebrows, nose, mouth, skin tone, age, and hairstyle. Adapt "
+        "the body and clothing to the black racing suit and confident hero pose. "
+        "Recreate the rally car, Paraguay flag, rural background, framing, golden-hour "
+        "lighting, shadows, scale, perspective, and depth of field from IMAGE 2. Do not "
+        "return IMAGE 2 unchanged. No text, logos, or borders."
+    ),
+}
 
 
-def prompt_for_two_images(prompt: str) -> str:
-    return (
-        prompt.replace(THIRD_IMAGE_INSTRUCTION, ".")
-        .replace("second and third images", "second image")
-        .replace(" inside the transparent masked area", "")
-    )
+def create_template_cutout(template_bytes: bytes, mask_bytes: bytes) -> bytes:
+    try:
+        from PIL import Image
+
+        with Image.open(BytesIO(template_bytes)) as template_source:
+            template = template_source.convert("RGBA")
+        with Image.open(BytesIO(mask_bytes)) as mask_source:
+            mask_alpha = mask_source.convert("RGBA").getchannel("A")
+    except OSError as exc:
+        raise ValueError("No se pudo preparar la plantilla para xAI") from exc
+
+    if template.size != mask_alpha.size:
+        raise ValueError("La plantilla y su máscara tienen dimensiones diferentes")
+
+    template.putalpha(mask_alpha)
+    output = BytesIO()
+    template.save(output, format="PNG", optimize=True)
+    return output.getvalue()
 
 
 def parse_args() -> argparse.Namespace:
@@ -60,27 +115,42 @@ async def run(photo_path: Path, scene_name: str) -> Path:
         raise ValueError(f"No existe la plantilla de la escena: {template_path}")
 
     source_png = convert_source_to_png(participant_bytes)
-    template_bytes = template_path.read_bytes()
+    identity_closeup_png = create_centered_identity_closeup(participant_bytes)
+    template_bytes = create_template_cutout(
+        template_path.read_bytes(),
+        scene.mask.to_png(),
+    )
     prepared_at = perf_counter()
 
     storage = ImageStorage(settings.images_dir)
     image_id = storage.create_id()
+    template_filename = storage.save_png(template_bytes, image_id, suffix="-T")
+    source_filename = storage.save_png(source_png, image_id, suffix="-S")
+    identity_filename = storage.save_png(identity_closeup_png, image_id, suffix="-F")
     gateway = XAIImageGateway(api_key=xai_api_key, model=xai_model)
 
     print("Proveedor: xAI")
     print(f"Modelo: {xai_model}")
     print(f"Escena: {scene_name}")
     print(f"Foto: {photo_path.resolve()}")
-    print("Archivos enviados: plantilla + sujeto (sin máscara)")
+    print("Orden enviado: sujeto + plantilla recortada + rostro ampliado")
+    print(
+        "Debug: "
+        + ", ".join(
+            str((settings.images_dir / filename).resolve())
+            for filename in (template_filename, source_filename, identity_filename)
+        )
+    )
     print("Enviando a xAI...")
 
     api_started_at = perf_counter()
     image_bytes = await gateway.generate_from_images(
         images=[
-            (template_bytes, "image/png"),
             (source_png, "image/png"),
+            (template_bytes, "image/png"),
+            (identity_closeup_png, "image/png"),
         ],
-        prompt=prompt_for_two_images(scene.prompt),
+        prompt=XAI_SCENE_PROMPTS[scene_name],
     )
     api_finished_at = perf_counter()
 

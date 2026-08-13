@@ -6,6 +6,7 @@ from pathlib import Path
 from time import perf_counter
 
 from .config import Settings
+from .image_profiles import IMAGE_PROFILES, get_image_profile, prompt_for_two_images
 from .identity_reference import (
     IdentityReferenceError,
     convert_source_to_png,
@@ -15,32 +16,25 @@ from .scenes import SCENES
 from .storage import ImageStorage
 
 
-THIRD_IMAGE_INSTRUCTION = (
-    ", and the third image is an enlarged face reference of that same participant. "
-    "The third image is authoritative for identity."
-)
-
-
-def prompt_for_two_images(prompt: str) -> str:
-    return (
-        prompt.replace(THIRD_IMAGE_INSTRUCTION, ".")
-        .replace("second and third images", "second image")
-        .replace(" inside the transparent masked area", "")
-    )
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Envía una plantilla y una foto a OpenAI para medir su velocidad."
     )
     parser.add_argument("photo", type=Path, help="Path de la foto del participante")
     parser.add_argument("scene", choices=SCENES, help="Nombre de la escena")
+    parser.add_argument(
+        "--profile",
+        choices=IMAGE_PROFILES,
+        default="fast",
+        help="Perfil de velocidad/calidad (default: fast)",
+    )
     return parser.parse_args()
 
 
-async def run(photo_path: Path, scene_name: str) -> Path:
+async def run(photo_path: Path, scene_name: str, profile_name: str) -> Path:
     started_at = perf_counter()
     settings = Settings.from_environment()
+    profile = get_image_profile(profile_name)
 
     if not settings.api_key:
         raise ImageGenerationError("OPENAI_API_KEY no está configurada en .env")
@@ -68,6 +62,11 @@ async def run(photo_path: Path, scene_name: str) -> Path:
 
     print("Proveedor: OpenAI")
     print(f"Modelo: {settings.model}")
+    print(f"Perfil: {profile_name}")
+    print(
+        f"Salida: {profile.size}, calidad {profile.quality}, "
+        f"formato {profile.output_format}"
+    )
     print(f"Escena: {scene_name}")
     print(f"Foto: {photo_path.resolve()}")
     print("Archivos enviados: plantilla + sujeto (sin máscara)")
@@ -80,10 +79,15 @@ async def run(photo_path: Path, scene_name: str) -> Path:
             (f"{image_id}-S.png", source_png, "image/png"),
         ],
         prompt=prompt_for_two_images(scene.prompt),
+        size=profile.size,
+        quality=profile.quality,
+        output_format=profile.output_format,
+        output_compression=profile.output_compression,
     )
     api_finished_at = perf_counter()
 
-    filename = storage.save_png(image_bytes, image_id)
+    result_png = convert_source_to_png(image_bytes)
+    filename = storage.save_png(result_png, image_id)
     finished_at = perf_counter()
     output_path = (settings.images_dir / filename).resolve()
 
@@ -97,7 +101,7 @@ async def run(photo_path: Path, scene_name: str) -> Path:
 def main() -> None:
     args = parse_args()
     try:
-        asyncio.run(run(args.photo, args.scene))
+        asyncio.run(run(args.photo, args.scene, args.profile))
     except (IdentityReferenceError, ImageGenerationError, OSError, ValueError) as exc:
         raise SystemExit(f"Error: {exc}") from exc
 

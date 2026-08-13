@@ -13,19 +13,19 @@ from server.config import Settings
 from server.masking import MaskDefinition, Rectangle
 
 
-GENERATED_PNG = b"\x89PNG\r\n\x1a\nmock-generated-image"
 SOURCE_PNG = MaskDefinition(
     width=64,
     height=64,
     editable_shapes=(Rectangle(left=16, top=16, right=48, bottom=48),),
 ).to_png()
+GENERATED_PNG = SOURCE_PNG
 
 
 class FakeGateway:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
 
-    async def generate(self, **kwargs: object) -> bytes:
+    async def generate_from_images(self, **kwargs: object) -> bytes:
         self.calls.append(kwargs)
         return GENERATED_PNG
 
@@ -69,19 +69,21 @@ class PhotobookServerTests(unittest.TestCase):
                 f"https://photos.example.test/images/{payload['id']}.png",
             )
             saved_path = self.settings.images_dir / f"{payload['id']}.png"
-            self.assertEqual(saved_path.read_bytes(), GENERATED_PNG)
+            self.assertTrue(saved_path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
             self.assertEqual([path.name for path in self.settings.images_dir.iterdir()], [saved_path.name])
             self.assertEqual(len(self.gateway.calls), 1)
             call = self.gateway.calls[0]
-            self.assertEqual(call["template_bytes"], b"template")
-            self.assertTrue(call["participant_bytes"].startswith(b"\x89PNG\r\n\x1a\n"))
-            self.assertTrue(call["identity_closeup_bytes"].startswith(b"\x89PNG\r\n\x1a\n"))
-            self.assertTrue(call["mask_bytes"].startswith(b"\x89PNG\r\n\x1a\n"))
-            self.assertEqual(call["mask_filename"], f"{payload['id']}-M.png")
-            self.assertIn("authoritative for identity", str(call["prompt"]))
-            mask = call["mask_bytes"]
-            self.assertIsInstance(mask, bytes)
-            self.assertTrue(mask.startswith(b"\x89PNG\r\n\x1a\n"))
+            images = call["images"]
+            self.assertIsInstance(images, list)
+            self.assertEqual(len(images), 2)
+            self.assertEqual(images[0][1], b"template")
+            self.assertTrue(images[1][1].startswith(b"\x89PNG\r\n\x1a\n"))
+            self.assertNotIn("third image", str(call["prompt"]))
+            self.assertNotIn("masked area", str(call["prompt"]))
+            self.assertEqual(call["size"], "1536x1024")
+            self.assertEqual(call["quality"], "medium")
+            self.assertEqual(call["output_format"], "jpeg")
+            self.assertEqual(call["output_compression"], 90)
 
     def test_each_mask_matches_its_template_and_contains_editable_pixels(self) -> None:
         from server.scenes import SCENES
@@ -135,7 +137,12 @@ class PhotobookServerTests(unittest.TestCase):
 
         self.assertEqual(
             payload,
-            {"status": "ok", "openai_configured": True, "model": "gpt-image-2"},
+            {
+                "status": "ok",
+                "openai_configured": True,
+                "model": "gpt-image-2",
+                "image_profile": "balanced",
+            },
         )
         self.assertNotIn("test-key", str(payload))
 

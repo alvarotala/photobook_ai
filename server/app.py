@@ -11,11 +11,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import Settings
-from .identity_reference import (
-    IdentityReferenceError,
-    convert_source_to_png,
-    create_centered_identity_closeup,
-)
+from .image_profiles import get_image_profile, prompt_for_two_images
+from .identity_reference import IdentityReferenceError, convert_source_to_png
 from .openai_gateway import (
     ImageGateway,
     ImageGenerationError,
@@ -35,6 +32,7 @@ def create_app(
     gateway: ImageGateway | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_environment()
+    image_profile = get_image_profile(settings.image_profile)
     storage = ImageStorage(settings.images_dir)
     gateway = gateway or OpenAIImageGateway(api_key=settings.api_key, model=settings.model)
 
@@ -72,6 +70,7 @@ def create_app(
             "status": "ok",
             "openai_configured": bool(settings.api_key),
             "model": settings.model,
+            "image_profile": settings.image_profile,
         }
 
     @app.post("/api/generate")
@@ -96,37 +95,34 @@ def create_app(
 
         try:
             source_png = convert_source_to_png(participant_bytes)
-            identity_closeup_png = create_centered_identity_closeup(participant_bytes)
         except IdentityReferenceError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
         image_id = storage.create_id()
         template_bytes = scene_definition.template_path(settings.templates_dir).read_bytes()
-        mask_bytes = scene_definition.mask.to_png()
         template_filename = f"{image_id}-T.png"
         source_filename = f"{image_id}-S.png"
-        identity_filename = f"{image_id}-F.png"
-        mask_filename = f"{image_id}-M.png"
 
         # Archivos de depuración deshabilitados para producción. Descomentar
         # temporalmente estas líneas para guardar exactamente lo enviado a OpenAI.
         # storage.save_png(template_bytes, image_id, suffix="-T")
         # storage.save_png(source_png, image_id, suffix="-S")
-        # storage.save_png(identity_closeup_png, image_id, suffix="-F")
-        # storage.save_png(mask_bytes, image_id, suffix="-M")
 
-        logger.info("Sending scene=%s to OpenAI", scene)
-        image_bytes = await app.state.gateway.generate(
-            template_bytes=template_bytes,
-            template_filename=template_filename,
-            participant_bytes=source_png,
-            participant_filename=source_filename,
-            participant_content_type="image/png",
-            identity_closeup_bytes=identity_closeup_png,
-            identity_closeup_filename=identity_filename,
-            prompt=scene_definition.prompt,
-            mask_bytes=mask_bytes,
-            mask_filename=mask_filename,
+        logger.info(
+            "Sending scene=%s to OpenAI using profile=%s",
+            scene,
+            settings.image_profile,
+        )
+        image_bytes = await app.state.gateway.generate_from_images(
+            images=[
+                (template_filename, template_bytes, "image/png"),
+                (source_filename, source_png, "image/png"),
+            ],
+            prompt=prompt_for_two_images(scene_definition.prompt),
+            size=image_profile.size,
+            quality=image_profile.quality,
+            output_format=image_profile.output_format,
+            output_compression=image_profile.output_compression,
         )
         logger.info(
             "Generated scene=%s using participant=%s (%d bytes)",
@@ -134,7 +130,8 @@ def create_app(
             participant_filename,
             len(participant_bytes),
         )
-        filename = storage.save_png(image_bytes, image_id)
+        result_png = convert_source_to_png(image_bytes)
+        filename = storage.save_png(result_png, image_id)
         base_url = settings.public_base_url or str(request.base_url).rstrip("/")
         return {
             "id": image_id,
