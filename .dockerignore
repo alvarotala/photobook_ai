@@ -13,7 +13,7 @@ android
 ios
 node_modules
 generated_images
-images
+images/backgrounds
 assets
 plugins
 src

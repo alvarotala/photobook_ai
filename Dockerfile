@@ -10,6 +10,7 @@ RUN python -m pip install --no-cache-dir -r server/requirements.txt
 
 COPY server server
 COPY templates templates
+COPY images/logos images/logos
 
 RUN mkdir -p /app/generated_images
 
