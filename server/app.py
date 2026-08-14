@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import Settings
 from .image_profiles import get_image_profile, prompt_for_two_images
 from .identity_reference import IdentityReferenceError, convert_source_to_png
+from .logo_overlay import add_partner_logos
 from .openai_gateway import (
     ImageGateway,
     ImageGenerationError,
@@ -130,7 +131,7 @@ def create_app(
             participant_filename,
             len(participant_bytes),
         )
-        result_png = convert_source_to_png(image_bytes)
+        result_png = add_partner_logos(convert_source_to_png(image_bytes))
         filename = storage.save_png(result_png, image_id)
         base_url = settings.public_base_url or str(request.base_url).rstrip("/")
         return {

@@ -119,14 +119,7 @@ export function HomeScreen({ onStart }: Props) {
 
       <View style={styles.scrim} />
 
-      <View style={styles.sponsorBar} accessibilityLabel="Gobierno del Paraguay, Itaipú y Yacyretá">
-        <Image
-          source={require('../../images/logos/gdp.png')}
-          style={styles.governmentLogo}
-          resizeMode="contain"
-          accessibilityLabel="Gobierno del Paraguay"
-        />
-        <View style={styles.logoDivider} />
+      <View style={styles.sponsorBar} accessibilityLabel="Itaipú, Yacyretá y Gobierno del Paraguay">
         <View style={styles.itaipuLogoFrame}>
           <Image
             source={require('../../images/logos/itaipu.png')}
@@ -141,6 +134,13 @@ export function HomeScreen({ onStart }: Props) {
           style={styles.yasyretaLogo}
           resizeMode="contain"
           accessibilityLabel="Entidad Binacional Yacyretá"
+        />
+        <View style={styles.logoDivider} />
+        <Image
+          source={require('../../images/logos/gdp.png')}
+          style={styles.governmentLogo}
+          resizeMode="contain"
+          accessibilityLabel="Gobierno del Paraguay"
         />
       </View>
 
