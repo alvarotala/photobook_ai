@@ -5,7 +5,7 @@ import unittest
 
 from PIL import Image
 
-from server.logo_overlay import LOGO_PLATES, add_partner_logos
+from server.logo_overlay import LOGO_FILENAMES, add_partner_logos
 
 
 class PartnerLogoOverlayTests(unittest.TestCase):
@@ -19,14 +19,11 @@ class PartnerLogoOverlayTests(unittest.TestCase):
         with Image.open(BytesIO(output_bytes)) as result:
             self.assertEqual(result.size, source.size)
             self.assertEqual(result.format, "PNG")
-            self.assertGreater(result.getpixel((60, 710))[0], 220)
-            self.assertGreater(result.getpixel((312, 710))[0], 220)
-            self.assertGreater(result.getpixel((624, 710))[0], 220)
+            self.assertGreater(result.getpixel((190, 710))[0], 220)
+            self.assertGreater(result.getpixel((1010, 710))[0], 220)
+            self.assertEqual(result.getpixel((50, 710)), (120, 20, 20))
 
-        self.assertEqual(
-            [filename for _, _, filename in LOGO_PLATES],
-            ["itaipu.png", "yasyreta.png", "gdp.png"],
-        )
+        self.assertEqual(LOGO_FILENAMES, ("itaipu.png", "yasyreta.png", "gdp.png"))
 
 
 if __name__ == "__main__":
