@@ -170,6 +170,19 @@ docker compose up -d api nginx
 curl https://sadmonkey.app/health
 ```
 
+### Actualizar el servidor
+
+Después de publicar cambios en el repositorio, actualizar y reconstruir los contenedores en el servidor:
+
+```bash
+cd /opt/photobook_ai
+git pull
+docker compose up -d --build
+docker compose ps
+docker compose logs --tail=100
+curl https://sadmonkey.app/health
+```
+
 ### Renovación
 
 Probar la renovación sin modificar el certificado:
