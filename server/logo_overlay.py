@@ -25,8 +25,8 @@ def add_partner_logos(image_bytes: bytes) -> bytes:
         result = source.convert("RGBA")
 
     width, height = result.size
-    bar_width = round(width * 0.72)
-    bar_height = max(12, round(height * 0.105))
+    bar_width = round(width * 0.52)
+    bar_height = max(12, round(height * 0.07))
     bottom_margin = max(3, round(height * 0.025))
     left = (width - bar_width) // 2
     top = height - bottom_margin - bar_height

@@ -182,6 +182,7 @@ const styles = StyleSheet.create({
   },
   sponsorBar: {
     position: 'absolute',
+    marginHorizontal: 14,
     top: 34,
     alignSelf: 'center',
     height: 68,
@@ -196,8 +197,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.65)',
   },
   governmentLogo: { width: 148, height: 34 },
-  itaipuLogoFrame: { width: 76, height: 60, overflow: 'hidden', alignItems: 'center' },
-  itaipuLogo: { width: 130, height: 60 },
+  itaipuLogoFrame: { width: 78, height: 62, overflow: 'hidden', alignItems: 'center' },
+  itaipuLogo: { width: 130, height: 62 },
   yasyretaLogo: { width: 83, height: 56 },
   logoDivider: {
     width: 1,

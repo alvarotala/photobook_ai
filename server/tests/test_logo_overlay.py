@@ -19,8 +19,8 @@ class PartnerLogoOverlayTests(unittest.TestCase):
         with Image.open(BytesIO(output_bytes)) as result:
             self.assertEqual(result.size, source.size)
             self.assertEqual(result.format, "PNG")
-            self.assertGreater(result.getpixel((190, 710))[0], 220)
-            self.assertGreater(result.getpixel((1010, 710))[0], 220)
+            self.assertGreater(result.getpixel((310, 735))[0], 220)
+            self.assertGreater(result.getpixel((890, 735))[0], 220)
             self.assertEqual(result.getpixel((50, 710)), (120, 20, 20))
 
         self.assertEqual(LOGO_FILENAMES, ("itaipu.png", "yasyreta.png", "gdp.png"))

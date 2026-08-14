@@ -12,6 +12,7 @@ import { colors } from './src/theme';
 import type { AppStep, GeneratedImage, Scene } from './src/types';
 
 const SESSION_TIMEOUT_MS = 60_000;
+const RESULT_TIMEOUT_MS = 3 * 60_000;
 
 export default function App() {
   const [step, setStep] = useState<AppStep>('home');
@@ -30,7 +31,10 @@ export default function App() {
 
   useEffect(() => {
     if (step === 'home' || step === 'camera' || step === 'processing') return;
-    const timeout = setTimeout(resetSession, SESSION_TIMEOUT_MS);
+    const timeout = setTimeout(
+      resetSession,
+      step === 'result' ? RESULT_TIMEOUT_MS : SESSION_TIMEOUT_MS,
+    );
     return () => clearTimeout(timeout);
   }, [resetSession, sessionVersion, step]);
 
