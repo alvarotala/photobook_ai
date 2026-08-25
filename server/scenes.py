@@ -47,22 +47,26 @@ SCENES: dict[str, SceneDefinition] = {
             width=1536,
             height=1024,
             editable_shapes=(
-                Ellipse(center_x=770, center_y=185, radius_x=165, radius_y=180),
-                Rectangle(left=575, top=230, right=955, bottom=1023),
+                Ellipse(center_x=800, center_y=205, radius_x=125, radius_y=135),
+                Ellipse(center_x=630, center_y=105, radius_x=100, radius_y=115),
+                Rectangle(left=585, top=105, right=710, bottom=390),
+                Rectangle(left=650, top=270, right=930, bottom=900),
             ),
         ),
         prompt=(
             "IMPORTANT: The central winner in the first image is only a placeholder and MUST NOT appear in "
-            "the result. The first image defines the target podium scene. The second image shows the actual "
+            "the result. The first image defines the target epic podium scene with one winner only. The "
+            "second image shows the actual "
             "participant, and the third image is an enlarged face reference of that same participant. The "
             "third image is authoritative for identity. Replace only the central winner inside the "
             "transparent masked area. Copy the participant's face exactly from the second and third images: "
             "face shape, eyes, eyebrows, "
             "nose, mouth, skin tone, age, hairstyle, and other key facial features. Create a coherent full "
-            "racing-suit body and victory pose. Keep all other fictional teammates, the podium, background, "
-            "framing, realistic lighting, shadows, "
-            "scale, and perspective from the first image. Produce one photorealistic landscape image and "
-            "do not add text, logos, borders, or extra people."
+            "racing-suit body in the same triumphant pose, raising the single championship trophy overhead. "
+            "Keep the gold medal, podium, Paraguay flag, historic ruins, golden confetti, dramatic sunset, "
+            "framing, realistic lighting, shadows, scale, and perspective from the first image. The result "
+            "must contain exactly one person and exactly one trophy. Produce one photorealistic landscape "
+            "image and do not add text, logos, borders, spectators, teammates, or extra people."
         ),
     ),
     "hero": SceneDefinition(

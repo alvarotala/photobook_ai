@@ -15,11 +15,11 @@ export const scenes: Scene[] = [
     id: 'podium',
     eyebrow: 'VICTORIA',
     title: 'En el podio',
-    description: 'Celebrá una carrera inolvidable con todo el equipo.',
+    description: 'Celebrá una victoria inolvidable como protagonista absoluto.',
     instruction: 'Levantá un brazo o celebrá mirando de frente.',
     image: require('../../templates/podium.png'),
     prompt:
-      'Integrate the photographed participant as the central winner on the podium in the reference scene. Preserve their identity and facial features. Match the realistic racing suit, full body pose, lighting, perspective, shadows, and scale.',
+      'Integrate the photographed participant as the only winner on the podium, raising the championship trophy. Preserve their identity and facial features. Match the realistic racing suit, full-body victory pose, dramatic sunset lighting, perspective, shadows, and scale.',
   },
   {
     id: 'hero',

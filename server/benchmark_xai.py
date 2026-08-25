@@ -36,15 +36,18 @@ XAI_SCENE_PROMPTS = {
     "podium": (
         "Create a new photorealistic composite. IMAGE 1 is the actual participant and "
         "the primary subject. IMAGE 2 is the target podium scene with a transparent "
-        "empty area in the central winner position. IMAGE 3 is a close-up of the "
+        "empty area in the single central winner and raised-trophy position. IMAGE 3 is a close-up of the "
         "participant in IMAGE 1 and is "
         "authoritative for facial identity. Place the participant from IMAGES 1 and 3 "
         "as the central winner, filling the transparent area of IMAGE 2 completely. The "
         "final person must be recognizably the participant: preserve face shape, eyes, "
         "eyebrows, nose, mouth, skin tone, age, and hairstyle. Create a coherent full "
-        "racing-suit body and victory pose. Recreate the teammates, podium, background, "
-        "framing, lighting, shadows, scale, and perspective from IMAGE 2. Do not return "
-        "IMAGE 2 unchanged. No text, logos, borders, or extra people."
+        "racing-suit body in the same triumphant pose, raising the single championship "
+        "trophy overhead. Recreate the gold medal, podium, Paraguay flag, historic ruins, "
+        "golden confetti, dramatic sunset, framing, lighting, shadows, scale, and perspective "
+        "from IMAGE 2. The final image must contain exactly one person and exactly one trophy. "
+        "Do not return IMAGE 2 unchanged. No text, logos, borders, spectators, teammates, or "
+        "extra people."
     ),
     "hero": (
         "Create a new photorealistic composite. IMAGE 1 is the actual participant and "
