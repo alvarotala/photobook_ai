@@ -247,6 +247,21 @@ El APK se genera en:
 android/app/build/outputs/apk/release/app-release.apk
 ```
 
+### Subir el APK al servidor
+
+Desde la raíz del repositorio en la Mac, copiar el APK a la raíz del proyecto en el
+servidor:
+
+```bash
+scp android/app/build/outputs/apk/release/app-release.apk root@sadmonkey.app:/opt/photobook_ai/app-release.apk
+```
+
+Comprobar que el archivo llegó correctamente:
+
+```bash
+ssh root@sadmonkey.com 'ls -lh /opt/photobook_ai/app-release.apk'
+```
+
 Instalarlo manualmente o mediante USB:
 
 ```bash
